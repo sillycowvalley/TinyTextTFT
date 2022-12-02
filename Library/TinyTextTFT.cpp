@@ -6,11 +6,22 @@
   I used code from the Adafruit ILI9341 driver and Adafruit_GFX
   to create this minimalist tiny anti-aliased text driver for
   ILI9341 320x240 TFT displays.
-
   Support Adafruit's work on drivers by purchasing directly from Adafruit:
     https://www.adafruit.com/category/825
+  Some Adafruit attribution from the original version follows. Obviously
+  this is my hack so any errors are 100% my fault.
 
-*/
+     * Adafruit invests time and resources providing this open source code,
+     * please support Adafruit and open-source hardware by purchasing
+     * products from Adafruit!
+     *
+     * This library depends on <a href="https://github.com/adafruit/Adafruit_GFX">
+     * Adafruit_GFX</a> being present on your system. Please make sure you have
+     * installed the latest version before using this library.
+     *
+     * Written by Limor "ladyada" Fried for Adafruit Industries.
+     *
+ */
 
 #define SPI_DEFAULT_FREQ 24000000 ///< Default SPI data clock frequency
 
