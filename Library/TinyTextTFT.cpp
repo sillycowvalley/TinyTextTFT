@@ -614,65 +614,82 @@ void TinyTextTFT::FillScreen(uint16_t color)
 
 void TinyTextTFT::DrawChar(uint8_t col, uint8_t row, char chr, uint16_t foreColor, uint16_t backColor)
 {
-    uint8_t index = fontMap[chr]; // if it is missing from the font, index will be 0 (' ')
-    if ((col >= _columns) || (row >= _rows))
+    for (;;)
     {
-        return; // clipping
-    }
-    int16_t x0 = col * _cellWidth;
-    int16_t y0 = row * _cellHeight;
+        uint8_t index = fontMap[chr]; // if it is missing from the font, index will be 0 (' ')
+        if ((col >= _columns) || (row >= _rows))
+        {
+            break; // clipping
+        }
+        int16_t x0 = col * _cellWidth;
+        int16_t y0 = row * _cellHeight;
 
-    startWrite();
+        startWrite();
 
-    const uint16_t* addr = (const uint16_t*)tinyFont;
-    addr = addr + (9 * index);
-    addr++;
+        setAddrWindow(x0, y0, 5, 10); // <-- this is slow
 
-    setAddrWindow(x0, y0, 5, 10); // <-- this is slow
+        uint16_t pixelb = blendPixelColor(0xF, backColor, backColor);
+        uint32_t backColor32 = ((pixelb >> 8) | ((pixelb & 0xFF) << 8) | ((pixelb & 0xFF00) << 8) | ((pixelb & 0xFF) << 24));
 
-    uint16_t pixelb = blendPixelColor(0xF, backColor, backColor);
-    uint32_t backColor32 = ((pixelb >> 8) | ((pixelb & 0xFF) << 8) | ((pixelb & 0xFF00) << 8) | ((pixelb & 0xFF) << 24));
-    uint16_t backColor16 = ((pixelb >> 8) | ((pixelb & 0xFF) << 8));
+        if (index == 0)
+        {
+            // ' '
+            uint16_t pixelCount = 25; // 5x10/2
+            while (pixelCount--)
+            {
+                _spi->write32(backColor32, false);
+            }
+            endWrite();
+            break;
+        }
 
-    // top row
-    _spi->write32(backColor32, false);
-    _spi->write32(backColor32, false);
-    _spi->write16(backColor16, false);
+        uint16_t backColor16 = ((pixelb >> 8) | ((pixelb & 0xFF) << 8));
 
-    uint8_t tonel = 16; // not possible
-    uint16_t pixell = 0;
-    for (int y = 0; y < 8; y++)
-    {
-        uint16_t tones = pgm_read_word(addr);
-        addr++;
-
-        uint8_t tone0 = ((tones >> 12) & 0x0F);
-        uint8_t tone1 = ((tones >> 8) & 0x0F);
-        uint16_t pixel0 = (tonel == tone0) ? pixell : blendPixelColor(tone0, foreColor, backColor);
-        uint16_t pixel1 = (tone0 == tone1) ? pixel0 : blendPixelColor(tone1, foreColor, backColor);
-        uint32_t pixelColor32 = ((pixel0 >> 8) | ((pixel0 & 0xFF) << 8) | ((pixel1 & 0xFF00) << 8) | ((pixel1 & 0xFF) << 24));
-        _spi->write32(pixelColor32, false);
-
-        uint8_t tone2 = ((tones >> 4) & 0x0F);
-        uint8_t tone3 = (tones & 0x0F);
-        uint16_t pixel2 = (tone1 == tone2) ? pixel1 : blendPixelColor(tone2, foreColor, backColor);
-        uint16_t pixel3 = (tone2 == tone3) ? pixel2 : blendPixelColor(tone3, foreColor, backColor);
-        pixelColor32 = ((pixel2 >> 8) | ((pixel2 & 0xFF) << 8) | ((pixel3 & 0xFF00) << 8) | ((pixel3 & 0xFF) << 24));
-        _spi->write32(pixelColor32, false);
-
-        //right column
+        // top row
+        _spi->write32(backColor32, false);
+        _spi->write32(backColor32, false);
         _spi->write16(backColor16, false);
 
-        pixell = pixel3;
-        tonel = tone3;
-    }
-    
-    // bottom row
-    _spi->write32(backColor32, false);
-    _spi->write32(backColor32, false);
-    _spi->write16(backColor16, false);
+        const uint16_t* addr = (const uint16_t*)tinyFont;
+        addr = addr + (9 * index);
+        addr++;
 
-    endWrite();
+        uint8_t tonel = 16; // not possible
+        uint16_t pixell = 0;
+        for (int y = 0; y < 8; y++)
+        {
+            uint16_t tones = pgm_read_word(addr);
+            addr++;
+
+            uint8_t tone0 = ((tones >> 12) & 0x0F);
+            uint8_t tone1 = ((tones >> 8) & 0x0F);
+            uint16_t pixel0 = (tonel == tone0) ? pixell : blendPixelColor(tone0, foreColor, backColor);
+            uint16_t pixel1 = (tone0 == tone1) ? pixel0 : blendPixelColor(tone1, foreColor, backColor);
+            uint32_t pixelColor32 = ((pixel0 >> 8) | ((pixel0 & 0xFF) << 8) | ((pixel1 & 0xFF00) << 8) | ((pixel1 & 0xFF) << 24));
+            _spi->write32(pixelColor32, false);
+
+            uint8_t tone2 = ((tones >> 4) & 0x0F);
+            uint8_t tone3 = (tones & 0x0F);
+            uint16_t pixel2 = (tone1 == tone2) ? pixel1 : blendPixelColor(tone2, foreColor, backColor);
+            uint16_t pixel3 = (tone2 == tone3) ? pixel2 : blendPixelColor(tone3, foreColor, backColor);
+            pixelColor32 = ((pixel2 >> 8) | ((pixel2 & 0xFF) << 8) | ((pixel3 & 0xFF00) << 8) | ((pixel3 & 0xFF) << 24));
+            _spi->write32(pixelColor32, false);
+
+            //right column
+            _spi->write16(backColor16, false);
+
+            pixell = pixel3;
+            tonel = tone3;
+        }
+    
+        // bottom row
+        _spi->write32(backColor32, false);
+        _spi->write32(backColor32, false);
+        _spi->write16(backColor16, false);
+
+        endWrite();
+        break;
+    } // for (;;)
 }
 
 void TinyTextTFT::SetRotation(uint8_t m)
